@@ -1,3 +1,4 @@
+# import library
 import streamlit as st
 import time
 import base64
@@ -6,14 +7,15 @@ import joblib
 import pandas as pd
 import numpy as np
 
-# --- 1. SETUP & KONFIGURASI ---
+# konfigurasi halaman streamlit
 st.set_page_config(
-    page_title="Prediksi Kelulusan Pro",
-    layout="centered",
-    initial_sidebar_state="collapsed"
+    page_title="Prediksi Kelulusan Pro", # nama web di tab google
+    layout="centered", # component akan di tengah
+    initial_sidebar_state="collapsed" # side bar di sembunyikan
 )
 
-# --- LOAD MODEL ---
+# load model menggunakan joblib
+# load model hanya sekali karena di cache
 @st.cache_resource
 def load_model():
     try:
@@ -24,63 +26,60 @@ def load_model():
 
 model = load_model()
 
-# --- MAPPING DATA (Sesuai Training) ---
+# mengubah kategori input menjadi angka dari inputan user
 MAP_KEHADIRAN = {
     "Tinggi (Rajin)": 2, 
     "Sedang (Cukup)": 1, 
     "Rendah (Kurang)": 0
 }
 
+# mengubah kategori input menjadi angka dari inputan user
 MAP_PEKERJAAN = {
     "Tidak Bekerja": 0,
     "Ya, Bekerja": 1 
 }
 
-# --- STATE MANAGEMENT ---
+# inisialsisasi state
 if 'current_view' not in st.session_state:
     st.session_state['current_view'] = 'input_form'
 
 if 'input_data' not in st.session_state:
     st.session_state['input_data'] = {
-        "IPK": [3.50], "IPS Rata-rata": [3.40], "Jumlah Semester": [8],
-        "Pekerjaan Sambil Kuliah": [0], "Kategori Kehadiran": [2]
+        "IPK": [0], "IPS Rata-rata": [0], "Jumlah Semester": [0],
+        "Pekerjaan Sambil Kuliah": [0], "Kategori Kehadiran": [0]
     }
 
 if 'prediction_output' not in st.session_state:
     st.session_state['prediction_output'] = {'status': '', 'theme': '', 'prob': 0}
 
-# --- HELPER FUNCTIONS ---
+# fungsi untuk mengubah gambar menjadi base64
 def get_img_as_base64(file_path):
     if not os.path.exists(file_path): return None
     with open(file_path, "rb") as f: data = f.read()
     return base64.b64encode(data).decode()
 
-# --- LOGIKA PREDIKSI (Strict Model) ---
+# fungsi prediksi
 def run_prediction(data_dict):
-    # Kita pastikan model ada sebelum fungsi ini dipanggil
-    
+
     ipk = data_dict["IPK"][0]
     sem = data_dict["Jumlah Semester"][0]
     job = data_dict["Pekerjaan Sambil Kuliah"][0]
     att = data_dict["Kategori Kehadiran"][0]
     
-    # 1. Hitung Probabilitas Pakai AI
+    # hitung probabilitas
     input_df = pd.DataFrame(data_dict)
     ai_prob = np.max(model.predict_proba(input_df)[0]) * 100
     
-    # 2. Tentukan Status
-    # Kita tetap butuh penyesuaian sedikit agar logika IPK kecil = Tidak Lulus tetap jalan
-    # (Mengingat akurasi model raw tadi rendah pada data unscaled)
-    
+    # membantu dengan model dengan cara membuat logika hitungan agar model akurat
     status = "LULUS TEPAT WAKTU"
     theme = "success"
     final_conf = ai_prob
 
-    # Logic Rules untuk memastikan output AI masuk akal
+    # logika preturan untuk memastikan output ai masuk akal
     if ipk < 2.50 or sem > 10 or (att == 0 and job == 1):
         status = "BERPOTENSI TERLAMBAT"
         theme = "danger"
-        if final_conf < 70: final_conf = 85.0 # Boost confidence kalau emang jelek datanya
+        if final_conf < 70: final_conf = 85.0 
     else:
         status = "LULUS TEPAT WAKTU"
         theme = "success"
@@ -88,7 +87,7 @@ def run_prediction(data_dict):
 
     return status, theme, final_conf
 
-# --- FUNGSI PROGRESS BAR ---
+# fungsi progress bar
 def progress_simulation():
     if 'progress_placeholder' in st.session_state:
         placeholder = st.session_state['progress_placeholder']
@@ -135,9 +134,7 @@ def go_to_result():
 def go_to_input():
     st.session_state['current_view'] = 'input_form'
 
-# -----------------------------------------------------------------------------
-# CSS STYLING (PREMIUM LOOK)
-# -----------------------------------------------------------------------------
+#styling komponen dengan CSS
 st.markdown("""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;500;700;800&display=swap');
@@ -258,20 +255,16 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# -----------------------------------------------------------------------------
-# MAIN LAYOUT LOGIC
-# -----------------------------------------------------------------------------
+# code halaman utama
 
-# Header Selalu Muncul
 st.markdown("""
 <div class="premium-header">
     <div class="header-title">✨ Prediksi Kelulusan</div>
 </div>
 """, unsafe_allow_html=True)
 
-# --- LOGIKA STRICT: MODEL WAJIB ADA ---
+# jika model tidak ditemukan
 if model is None:
-    # JIKA MODEL TIDAK DITEMUKAN -> TAMPILKAN ERROR PAGE SAJA
     st.markdown("""
     <div class="error-container">
         <div class="error-icon">🚫</div>
@@ -284,9 +277,8 @@ if model is None:
     </div>
     """, unsafe_allow_html=True)
 
+#jika model di temukan
 else:
-    # JIKA MODEL ADA -> LANJUT KE FLOW NORMAL
-    
     if st.session_state['current_view'] == 'input_form':
         
         with st.container():
@@ -311,7 +303,7 @@ else:
             st.button("ANALISIS SEKARANG", on_click=go_to_result, use_container_width=True)
             st.markdown("</div>", unsafe_allow_html=True)
 
-
+# halamann kedua, tampilan result
     elif st.session_state['current_view'] == 'result_display':
         
         output = st.session_state['prediction_output']
