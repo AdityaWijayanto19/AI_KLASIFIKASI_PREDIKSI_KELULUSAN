@@ -326,6 +326,9 @@ else:
         
         if theme == 'success':
             st.balloons()
+        else:
+            st.snow()
+            st.toast("Risiko tinggi terdeteksi", icon="🚨")
         
         html_content = f"""
     <div style="padding: 0 20px;">
